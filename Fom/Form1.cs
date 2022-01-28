@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using ObjLoader.Loader.Loaders;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Graphics;
 using OpenTK;
@@ -449,102 +452,43 @@ namespace ShadowWinForms
 
         private HexagonalPrism InitVertexBuffersForHexagonalPrism()
         {
-            float[] vertices = new float[]
-            {
-                +0.000000f, 0.0f, +0.0f,
-                +0.000000f, 0.0f, -1.0f,
-                -0.866025f, 0.0f, -0.5f,
-                -0.866025f, 0.0f, +0.5f,
-                +0.000000f, 0.0f, +1.0f,
-                +0.866025f, 0.0f, +0.5f,
-                +0.866025f, 0.0f, -0.5f,
-                +0.000000f, 1.0f, +0.0f,
-                +0.000000f, 1.0f, -1.0f,
-                -0.866025f, 1.0f, -0.5f,
-                -0.866025f, 1.0f, +0.5f,
-                +0.000000f, 1.0f, +1.0f,
-                +0.866025f, 1.0f, +0.5f,
-                +0.866025f, 1.0f, -0.5f,
-            };
+            var       objLoader  = new ObjLoaderFactory().Create();
+            using var fs         = File.OpenRead("hex.obj");
+            var       loadResult = objLoader.Load(fs);
+
+            var allVertices = loadResult.Vertices;
+            var vertices    = allVertices.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray();
 
             // Colors
-            float[] colors = new float[]
+            float[] colors = Enumerable.Range(0, allVertices.Count).SelectMany(i => new[] { 0f,1f,0f }).ToArray();
+
+            var allNormals = loadResult.Normals;
+
+            var indices = loadResult.Groups.SelectMany(g => g.Faces).SelectMany((f) =>
             {
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-                1, 1, 0,
-            };
+                List<int> ind = new List<int>(f.Count);
+                for (var i = 0; i < f.Count; i++)
+                {
+                    ind.Add(f[i].VertexIndex);
+                }
 
-            // Normals
-            float[] normals = new float[]
+                return ind.ToArray();
+            }).ToArray();
+
+            var normalIndices = loadResult.Groups.SelectMany(g => g.Faces).SelectMany((f) =>
             {
-                0.0000f, 1.0000f, 0.0000f,
-                0.0000f, 1.0000f, 0.0000f,
-                0.0000f, 1.0000f, 0.0000f,
-                0.0000f, 1.0000f, 0.0000f,
-                0.0000f, 1.0000f, 0.0000f,
-                0.0000f, 1.0000f, 0.0000f,
+                List<int> norms = new List<int>(f.Count);
+                for (var i = 0; i < f.Count; i++)
+                {
+                    norms.Add(f[i].NormalIndex);
+                }
 
-                0.0000f, -1.0000f, 0.0000f,
-                0.0000f, -1.0000f, 0.0000f,
-                0.0000f, -1.0000f, 0.0000f,
-                0.0000f, -1.0000f, 0.0000f,
-                0.0000f, -1.0000f, 0.0000f,
-                0.0000f, -1.0000f, 0.0000f,
+                return norms.ToArray();
+            }).ToArray();
 
-                -1.0000f, 0.0000f, 0.0000f,
-                -0.5000f, 0.0000f, -0.8660f,
-                0.5000f, 0.0000f, -0.8660f,
-                1.0000f, 0.0000f, -0.0000f,
-                -0.5000f, 0.0000f, 0.8660f,
-                0.5000f, 0.0000f, 0.8660f,
+            normalIndices = normalIndices.Select(i => i - 1).ToArray();
 
-                -1.0000f, 0.0000f, 0.0000f,
-                -0.5000f, 0.0000f, -0.8660f,
-                0.5000f, 0.0000f, -0.8660f,
-                1.0000f, 0.0000f, -0.0000f,
-                -0.5000f, 0.0000f, 0.8660f,
-                0.5000f, 0.0000f, 0.8660f,
-            };
-
-            int[] indices = new int[]
-            {
-                1, 2, 3,
-                1, 3, 4,
-                1, 4, 5,
-                1, 5, 6,
-                1, 6, 7,
-                1, 7, 2,
-                8, 10, 9,
-                8, 11, 10,
-                8, 12, 11,
-                8, 13, 12,
-                8, 14, 13,
-                8, 9, 14,
-                7, 6, 13,
-                6, 5, 12,
-                5, 4, 11,
-                4, 3, 10,
-                2, 7, 14,
-                3, 2, 9,
-                7, 13, 14,
-                6, 12, 13,
-                5, 11, 12,
-                4, 10, 11,
-                2, 14, 9,
-                3, 9, 10,
-            };
+            var normals = normalIndices.Select(ni => allNormals[ni]).SelectMany(n => new[] { n.X, n.Y, n.Z }).ToArray();
 
             indices = indices.Select(i => i - 1).ToArray();
 
