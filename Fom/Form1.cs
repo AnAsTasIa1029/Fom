@@ -199,13 +199,13 @@ namespace ShadowWinForms
 
             GL.UseProgram(shadowProgram.id); //Установка шейдера для создания карты теней
             // Отрисовка куба и плоскости (для создания карты теней)
-            DrawCube(shadowProgram, cube, viewMatrixFromLight, projMatrixFromLight);
+             DrawCube(shadowProgram, cube, viewMatrixFromLight, projMatrixFromLight);
 
             mvpMatrixFromLight_t = mvpMatrix;
             DrawPlane(shadowProgram, plane, viewMatrixFromLight, projMatrixFromLight);
 
             mvpMatrixFromLight_p = mvpMatrix;
-            DrawHexagonalPrism(shadowProgram, hexagonalPrism, viewMatrixFromLight, projMatrixFromLight);
+            // DrawHexagonalPrism(shadowProgram, hexagonalPrism, viewMatrixFromLight, projMatrixFromLight);
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0); // Изменение назначения рисунка на буфер цветов
             GL.Viewport(0, 0, ClientSize.Width, ClientSize.Height);
@@ -226,9 +226,9 @@ namespace ShadowWinForms
             GL.UniformMatrix4(colorProgram.u_MvpMatrixFromLight, false, ref mvpMatrixFromLight_h);
             GL.Uniform1(colorProgram.u_IsShadowReceiver, 0);
 
-            DrawHexagonalPrism(colorProgram, hexagonalPrism, viewMatrix, projMatrix);
+            // DrawHexagonalPrism(colorProgram, hexagonalPrism, viewMatrix, projMatrix);
 
-            // DrawCube(colorProgram, cube, viewMatrix, projMatrix);
+             DrawCube(colorProgram, cube, viewMatrix, projMatrix);
 
             glControl.SwapBuffers();
         }
