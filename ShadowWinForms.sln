@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShadowWinForms", "ShadowWinForms.csproj", "{7E9AA440-7DA9-41C4-BEFE-703FDA2ABCEE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShadowWinForms", "Fom/ShadowWinForms.csproj", "{7E9AA440-7DA9-41C4-BEFE-703FDA2ABCEE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
