@@ -70,6 +70,12 @@ namespace ShadowWinForms
 
         private HexagonalPrism hexagonalPrism;
 
+        private Cylinder cylinder;
+
+        private FigureType _currentFigure = FigureType.Cube;
+
+        private float _currentScale = 1f;
+
         public Form1()
         {
             InitializeComponent();
@@ -84,6 +90,8 @@ namespace ShadowWinForms
             glControl.Dock = DockStyle.Fill;
             glControl.MakeCurrent();
             tableLayoutPanel1.Controls.Add(glControl, 0, 0);
+            comboBoxType.Items.AddRange(Enum.GetValues<FigureType>().Select(v => v.ToString()).ToArray());
+            comboBoxType.SelectedIndex = 0;
         }
 
         private void GlControl_Load(object sender, EventArgs e)
@@ -142,8 +150,9 @@ namespace ShadowWinForms
             plane = InitVertexBuffersForPlane();
 
             hexagonalPrism = InitVertexBuffersForHexagonalPrism();
+            cylinder       = InitVertexBuffersForCylinder();
 
-            if (cube == null || plane == null)
+            if (cube == null || plane == null || hexagonalPrism == null || cylinder == null)
             {
                 Logger.Append("Не удалось установить информацию о вершине");
                 return;
@@ -199,13 +208,27 @@ namespace ShadowWinForms
 
             GL.UseProgram(shadowProgram.id); //Установка шейдера для создания карты теней
             // Отрисовка куба и плоскости (для создания карты теней)
-             DrawCube(shadowProgram, cube, viewMatrixFromLight, projMatrixFromLight);
+            // DrawCube(shadowProgram, cube, viewMatrixFromLight, projMatrixFromLight);
 
             mvpMatrixFromLight_t = mvpMatrix;
             DrawPlane(shadowProgram, plane, viewMatrixFromLight, projMatrixFromLight);
 
             mvpMatrixFromLight_p = mvpMatrix;
-            // DrawHexagonalPrism(shadowProgram, hexagonalPrism, viewMatrixFromLight, projMatrixFromLight);
+
+            switch (_currentFigure)
+            {
+                case FigureType.Cube:
+                    DrawCube(shadowProgram, cube, viewMatrixFromLight, projMatrixFromLight);
+                    break;
+                case FigureType.Hex:
+                    DrawHexagonalPrism(shadowProgram, hexagonalPrism, viewMatrixFromLight, projMatrixFromLight);
+                    break;
+                case FigureType.Cylinder:
+                    DrawCylinder(shadowProgram, cylinder, viewMatrixFromLight, projMatrixFromLight);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0); // Изменение назначения рисунка на буфер цветов
             GL.Viewport(0, 0, ClientSize.Width, ClientSize.Height);
@@ -216,7 +239,6 @@ namespace ShadowWinForms
             GL.Uniform1(colorProgram.u_ShadowMap, 0); // Pass 0 because gl.TEXTURE0 is enabled
             GL.UniformMatrix4(colorProgram.u_MvpMatrixFromLight, false, ref mvpMatrixFromLight_t);
             GL.Uniform1(colorProgram.u_IsShadowReceiver, 0);
-            // DrawCube(colorProgram, cube, viewMatrix, projMatrix);
 
             GL.UniformMatrix4(colorProgram.u_MvpMatrixFromLight, false, ref mvpMatrixFromLight_p);
             GL.Uniform1(colorProgram.u_IsShadowReceiver, 1);
@@ -226,9 +248,20 @@ namespace ShadowWinForms
             GL.UniformMatrix4(colorProgram.u_MvpMatrixFromLight, false, ref mvpMatrixFromLight_h);
             GL.Uniform1(colorProgram.u_IsShadowReceiver, 0);
 
-            // DrawHexagonalPrism(colorProgram, hexagonalPrism, viewMatrix, projMatrix);
-
-             DrawCube(colorProgram, cube, viewMatrix, projMatrix);
+            switch (_currentFigure)
+            {
+                case FigureType.Cube:
+                    DrawCube(colorProgram, cube, viewMatrix, projMatrix);
+                    break;
+                case FigureType.Hex:
+                    DrawHexagonalPrism(colorProgram, hexagonalPrism, viewMatrix, projMatrix);
+                    break;
+                case FigureType.Cylinder:
+                    DrawCylinder(colorProgram, cylinder, viewMatrix, projMatrix);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
 
             glControl.SwapBuffers();
         }
@@ -244,19 +277,25 @@ namespace ShadowWinForms
         private void DrawCube(ShaderProgram program, Obj o, Matrix4 viewMatrix, Matrix4 projMatrix)
         {
             // Установка угола поворота для модели матрицы
-            modelMatrix = Matrix4.CreateRotationY(currentAngle * (float)Math.PI / 180f);
+            modelMatrix = Matrix4.CreateScale(_currentScale) * Matrix4.CreateRotationY(currentAngle * (float)Math.PI / 180f);
             Draw(program, o, viewMatrix, projMatrix);
         }
 
         private void DrawPlane(ShaderProgram program, Obj o, Matrix4 viewMatrix, Matrix4 projMatrix)
         {
-            modelMatrix = Matrix4.CreateScale(10f, 10f, 10f); //масштаб 
+            modelMatrix = Matrix4.CreateScale(20f); //масштаб 
             Draw(program, o, viewMatrix, projMatrix);
         }
 
         private void DrawHexagonalPrism(ShaderProgram program, Obj o, Matrix4 viewMatrix, Matrix4 projMatrix)
         {
-            modelMatrix = Matrix4.CreateScale(5) * Matrix4.CreateRotationY(currentAngle * (float)Math.PI / 180f);
+            modelMatrix = Matrix4.CreateScale(_currentScale) * Matrix4.CreateRotationY(currentAngle * (float)Math.PI / 180f);
+            Draw(program, o, viewMatrix, projMatrix);
+        }
+
+        private void DrawCylinder(ShaderProgram program, Obj o, Matrix4 viewMatrix, Matrix4 projMatrix)
+        {
+            modelMatrix = Matrix4.CreateScale(_currentScale) * Matrix4.CreateRotationY(currentAngle * (float)Math.PI / 180f);
             Draw(program, o, viewMatrix, projMatrix);
         }
 
@@ -304,15 +343,10 @@ namespace ShadowWinForms
             // Vertex coordinates
             float[] vertices = new float[]
             {
-                //3.0f, -1.7f, 2.5f, // v0-v1-v2-v3
-                //-3.0f, -1.7f, 2.5f,
-                //-3.0f, -1.7f, -10.5f,
-                //3.0f, -1.7f, -10.5f
-
-                3f, -3f, -3f, // v0-v1-v2-v3
-                -3f, -3f, -3f,
-                -3f, -3f, 3f,
-                3f, -3f, 3f
+                1f, -1f, -1f, // v0-v1-v2-v3
+                -1f, -1f, -1f,
+                -1f, -1f, 1f,
+                1f, -1f, 1f
             };
 
             // Colors
@@ -373,30 +407,30 @@ namespace ShadowWinForms
             {
                 //cube
 
-                2f, 2f, 2f,
-                -2f, 2f, 2f,
-                -2f, -2f, 2f,
-                2f, -2f, 2f, // v0-v1-v2-v3 front
-                2f, 2f, 2f,
-                2f, -2f, 2f,
-                2f, -2f, -2f,
-                2f, 2f, -2f, // v0-v3-v4-v5 right
-                2f, 2f, 2f,
-                2f, 2f, -2f,
-                -2f, 2f, -2f,
-                -2f, 2f, 2f, // v0-v5-v6-v1 up
-                -2f, 2f, 2f,
-                -2f, 2f, -2f,
-                -2f, -2f, -2f,
-                -2f, -2f, 2f, // v1-v6-v7-v2 left
-                -2f, -2f, -2f,
-                2f, -2f, -2f,
-                2f, -2f, 2f,
-                -2f, -2f, 2f, // v7-v4-v3-v2 down
-                2f, -2f, -2f,
-                -2f, -2f, -2f,
-                -2f, 2f, -2f,
-                2f, 2f, -2f // v4-v7-v6-v5 back
+                1f, 1f, 1f,
+                -1f, 1f, 1f,
+                -1f, -1f, 1f,
+                1f, -1f, 1f, // v0-v1-v2-v3 front
+                1f, 1f, 1f,
+                1f, -1f, 1f,
+                1f, -1f, -1f,
+                1f, 1f, -1f, // v0-v3-v4-v5 right
+                1f, 1f, 1f,
+                1f, 1f, -1f,
+                -1f, 1f, -1f,
+                -1f, 1f, 1f, // v0-v5-v6-v1 up
+                -1f, 1f, 1f,
+                -1f, 1f, -1f,
+                -1f, -1f, -1f,
+                -1f, -1f, 1f, // v1-v6-v7-v2 left
+                -1f, -1f, -1f,
+                1f, -1f, -1f,
+                1f, -1f, 1f,
+                -1f, -1f, 1f, // v7-v4-v3-v2 down
+                1f, -1f, -1f,
+                -1f, -1f, -1f,
+                -1f, 1f, -1f,
+                1f, 1f, -1f // v4-v7-v6-v5 back
             };
 
             // Colors
@@ -460,7 +494,7 @@ namespace ShadowWinForms
             var vertices    = allVertices.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray();
 
             // Colors
-            float[] colors = Enumerable.Range(0, allVertices.Count).SelectMany(i => new[] { 0f,1f,0f }).ToArray();
+            float[] colors = Enumerable.Range(0, allVertices.Count).SelectMany(i => new[] { 0f, 1, 0f }).ToArray();
 
             var allNormals = loadResult.Normals;
 
@@ -507,6 +541,65 @@ namespace ShadowWinForms
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
 
             return o;
+        }
+
+        private Cylinder InitVertexBuffersForCylinder()
+        {
+            var       objLoader  = new ObjLoaderFactory().Create();
+            using var fs         = File.OpenRead("cylinder.obj");
+            var       loadResult = objLoader.Load(fs);
+
+            var allVertices = loadResult.Vertices;
+            var vertices    = allVertices.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray();
+
+            // Colors
+            float[] colors = Enumerable.Range(0, allVertices.Count).SelectMany(i => new[] { 0f, 1, 0f }).ToArray();
+
+            var allNormals = loadResult.Normals;
+
+            var indices = loadResult.Groups.SelectMany(g => g.Faces).SelectMany((f) =>
+            {
+                List<int> ind = new List<int>(f.Count);
+                for (var i = 0; i < f.Count; i++)
+                {
+                    ind.Add(f[i].VertexIndex);
+                }
+
+                return ind.ToArray();
+            }).ToArray();
+
+            var normalIndices = loadResult.Groups.SelectMany(g => g.Faces).SelectMany((f) =>
+            {
+                List<int> norms = new List<int>(f.Count);
+                for (var i = 0; i < f.Count; i++)
+                {
+                    norms.Add(f[i].NormalIndex);
+                }
+
+                return norms.ToArray();
+            }).ToArray();
+
+            normalIndices = normalIndices.Select(i => i - 1).ToArray();
+
+            var normals = normalIndices.Select(ni => allNormals[ni]).SelectMany(n => new[] { n.X, n.Y, n.Z }).ToArray();
+
+            indices = indices.Select(i => i - 1).ToArray();
+
+            Cylinder c = new Cylinder(); //Использование объекта Object для совместного возврата нескольких объектов буфера
+
+            //  Запись информации о вершинах в объект буфера
+            c.vertexBuffer = InitArrayBufferForLaterUse(vertices, 3, VertexAttribPointerType.Float);
+            c.colorBuffer  = InitArrayBufferForLaterUse(colors, 3, VertexAttribPointerType.Float);
+            c.normalBuffer = InitArrayBufferForLaterUse(normals, 3, VertexAttribPointerType.Float);
+            c.indexBuffer  = InitElementArrayBufferForLaterUse(indices, DrawElementsType.UnsignedInt);
+
+            c.numIndices = indices.Length;
+
+            // Отвязать объект буфера
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+
+            return c;
         }
 
         private VertexBufferObject InitArrayBufferForLaterUse(float[] data, int num, VertexAttribPointerType type)
@@ -613,6 +706,21 @@ namespace ShadowWinForms
 
         private void Prism_Click(object sender, EventArgs e)
         {
+        }
+
+        private void comboBoxType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (comboBoxType.SelectedIndex == -1)
+            {
+                return;
+            }
+
+            _currentFigure = Enum.GetValues<FigureType>()[comboBoxType.SelectedIndex];
+        }
+
+        private void trackBarScale_Scroll(object sender, EventArgs e)
+        {
+            _currentScale = 1f + ((float)trackBarScale.Value / trackBarScale.Maximum) * 3;
         }
 
         private void GlControl_Resize(object sender, EventArgs e)
